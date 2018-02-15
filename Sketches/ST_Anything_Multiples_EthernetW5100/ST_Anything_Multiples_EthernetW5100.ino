@@ -1,6 +1,6 @@
-#include <Dhcp.h>
-#include <Dns.h>
-#include <EthernetUdp.h>
+//#include <Dhcp.h>
+//#include <Dns.h>
+//#include <EthernetUdp.h>
 
 
 //******************************************************************************************
