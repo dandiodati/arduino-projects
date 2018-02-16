@@ -4,7 +4,7 @@
 //#include <Dns.h>
 //#include <EthernetUdp.h>
 
-
+#include <string.h>
 
 //******************************************************************************************
 //******************************************************************************************
@@ -197,46 +197,35 @@ void loop() {
 void callback(const String &msg)
 {
 
-  std::string ObjMsg = new std::string(msg);
+//  std::string ObjMsg = new std::string(msg);
+//
+//  if (msg.find("on" )) {
+//    if (msg.find("switch1") {
+//      colorOffset = 0;
+//    } else if (msg.find("switch2") {
+//      colorOffset = 70;
+//    }
+//
+//    turnOnLights = true;
+//  } else if (msg.find("off") ) { 
+//    turnOffLights = false;
+//  }
 
-  if (msg.find("on" )) {
-    if (msg.find("switch1") {
+
+  if (msg.indexOf("on")) {
+    if (msg.indexOf("switch1")) {
       colorOffset = 0;
-    } else if (msg.find("switch2") {
+    } else if (msg.indexOf("switch2")) {
       colorOffset = 70;
     }
 
     turnOnLights = true;
-  } else if (msg.find("off") ) { 
-    turnOffLights = false;
+  } else if (msg.indexOf("off") ) { 
+    turnOnLights = false;
   }
 
-}
-
-
-boolean subStr(char[] str, char[] sub) {
- // char str[] = "String";
- // char sub[] = "ring";
- 
-  int i, j=0, k;
-  for(i=0; str[i]; i++)
-  {
-    if(str[i] == sub[j])
-    {
-      for(k=i, j=0; str[k] && sub[j]; j++, k++)
-        if(str[k]!=sub[j])
-            break;
-       if(!sub[j]){
-        printf("Substring");
-        return 0;}
-    }
-  }
-  
-     
-
-  
-  //Uncomment if it weould be desirable to using this function
-  Serial.print(F("ST_Anything_Miltiples Callback: Sniffed data = "));
+   //Uncomment if it weould be desirable to using this function
+  //Serial.print(F("ST_Anything_Miltiples Callback: Sniffed data = "));
   Serial.println(msg);
 
   //TODO:  Add local logic here to take action when a device's value/state is changed
@@ -245,4 +234,10 @@ boolean subStr(char[] str, char[] sub) {
   //st::receiveSmartString("Put your command here!");  //use same strings that the Device Handler would send
 
   //st::receiveSmartString("Put your command here!");  //use same strings that the Device Handler would send
+
 }
+     
+
+  
+ 
+
