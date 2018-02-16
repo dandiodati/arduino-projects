@@ -70,7 +70,7 @@ int pinCount = 4;           // the number of pins (i.e. the length of the array)
 
 
 int findNextSlot(int pressed[] ) {
-  for (int i = 0; i < sizeof(pressed); i++ ) {
+  for (int i = 0; i < (sizeof(pressed)/sizeof(int)); i++ ) {
     if (pressed[i] == 0 ) {
       return i;
     }
@@ -88,7 +88,7 @@ int validateCode(int states[], int pins[] ) {
   }
 
   void clearStates() {
-    for (int i =0; i < sizeof(sensorStates);i++) {
+    for (int i =0; i < (sizeof(sensorStates)/sizeof(int));i++) {
       sensorStates[i] = 0;
     }
  

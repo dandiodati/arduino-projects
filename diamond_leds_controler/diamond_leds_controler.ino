@@ -59,6 +59,10 @@ const unsigned int hubPort = 39500;           // smartthings hub port
 // This is an array of leds.  One item for each led in your strip.
 CRGB leds[NUM_LEDS];
 
+bool turnOnLights = 0;
+int colorOffset = 0;
+
+
 // This function sets up the ledsand tells the controller about them
 void setup() {
 
@@ -68,6 +72,11 @@ void setup() {
   // sanity check delay - allows reprogramming if accidently blowing power w/leds
   delay(2000);
 
+
+Serial.print("checking turnOnLights in setup:");
+ Serial.println(turnOnLights);
+
+ 
   FastLED.addLeds<TM1803, DATA_PIN, RGB>(leds, NUM_LEDS);
 
   //FastLED.setBrightness(84);
@@ -145,8 +154,7 @@ void fadeall() {
 }
 
 
-boolean turnOnLights = false;
-boolean colorOffset = 0;
+
 
 void loop() {
 
@@ -157,8 +165,10 @@ void loop() {
   //*****************************************************************************
   st::Everything::run();
 
+ Serial.print("checking turnOnLights:");
+ Serial.println(turnOnLights);
 
-  if (turnOnLights) {
+  if (turnOnLights == true) {
     // Move a single white led
     for (int whiteLed = 0; whiteLed < NUM_LEDS; whiteLed = whiteLed + 1) {
       // Turn our current led on to white, then show the leds
@@ -219,6 +229,7 @@ void callback(const String &msg)
       colorOffset = 70;
     }
 
+    Serial.println("got an on signal :" + msg);
     turnOnLights = true;
   } else if (msg.indexOf("off") ) { 
     turnOnLights = false;
