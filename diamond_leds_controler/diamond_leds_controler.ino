@@ -51,7 +51,7 @@ const unsigned int hubPort = 39500;           // smartthings hub port
 
 
 // How many leds are in the strip?
-#define NUM_LEDS 60
+#define NUM_LEDS 22
 
 // Data pin that led data will be written out over
 #define DATA_PIN 5
@@ -59,7 +59,7 @@ const unsigned int hubPort = 39500;           // smartthings hub port
 // This is an array of leds.  One item for each led in your strip.
 CRGB leds[NUM_LEDS];
 
-bool turnOnLights = 0;
+bool turnOnLights = false;
 int colorOffset = 0;
 
 
@@ -70,7 +70,7 @@ void setup() {
   //  FASTLED setup
   //******************************************************************************************
   // sanity check delay - allows reprogramming if accidently blowing power w/leds
-  delay(2000);
+  delay(500);
 
 
 Serial.print("checking turnOnLights in setup:");
@@ -149,7 +149,8 @@ Serial.print("checking turnOnLights in setup:");
 
 void fadeall() {
   for (int i = 0; i < NUM_LEDS; i++) {
-    leds[i].nscale8(250);
+    //leds[i].nscale8(250);
+    leds[i] = CRGB::Black;
   }
 }
 
@@ -165,8 +166,9 @@ void loop() {
   //*****************************************************************************
   st::Everything::run();
 
- Serial.print("checking turnOnLights:");
- Serial.println(turnOnLights);
+ 
+ //Serial.print("checking turnOnLights:");
+ //Serial.println(turnOnLights);
 
   if (turnOnLights == true) {
     // Move a single white led
@@ -185,11 +187,11 @@ void loop() {
 
       //fadeall();
       // Wait a little bit
-      delay(100);
+      delay(80);
 
 
       // Turn our current led back to black for the next loop around
-      leds[whiteLed] = CRGB::Purple;
+      leds[whiteLed] = CRGB::Black;
       if (whiteLed > 0 ) {
         leds[whiteLed - 1 ] = CRGB::Black;
       }
@@ -207,33 +209,23 @@ void loop() {
 void callback(const String &msg)
 {
 
-//  std::string ObjMsg = new std::string(msg);
-//
-//  if (msg.find("on" )) {
-//    if (msg.find("switch1") {
-//      colorOffset = 0;
-//    } else if (msg.find("switch2") {
-//      colorOffset = 70;
-//    }
-//
-//    turnOnLights = true;
-//  } else if (msg.find("off") ) { 
-//    turnOffLights = false;
-//  }
-
-
-  if (msg.indexOf("on")) {
-    if (msg.indexOf("switch1")) {
+  Serial.println(msg.indexOf("on"));
+  if (msg.indexOf("on") > -1) {
+    if (msg.indexOf("switch1") > -1) {
       colorOffset = 0;
-    } else if (msg.indexOf("switch2")) {
-      colorOffset = 70;
+    } else if (msg.indexOf("switch2") > -1) {
+      colorOffset = 120;
     }
 
     Serial.println("got an on signal :" + msg);
     turnOnLights = true;
-  } else if (msg.indexOf("off") ) { 
+  } else if (msg.indexOf("off") > -1) { 
     turnOnLights = false;
+    fadeall();
+    FastLED.show();
   }
+    //st::receiveSmartString("switch1 off");
+    //st::receiveSmartString("switch2 off");
 
    //Uncomment if it weould be desirable to using this function
   //Serial.print(F("ST_Anything_Miltiples Callback: Sniffed data = "));
