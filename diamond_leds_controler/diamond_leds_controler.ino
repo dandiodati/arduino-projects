@@ -33,6 +33,7 @@
 
 #define PIN_SWITCH_1              5  //SmartThings Capability "Switch"
 #define PIN_SWITCH_2              6  //SmartThings Capability "Switch"
+#define PIN_SWITCH_3              7  //SmartThings Capability "Switch"
 
 //******************************************************************************************
 //W5100 Ethernet Shield Information ce:4d:c6:02:47:4b
@@ -51,7 +52,7 @@ const unsigned int hubPort = 39500;           // smartthings hub port
 
 
 // How many leds are in the strip?
-#define NUM_LEDS 22
+#define NUM_LEDS 23
 
 // Data pin that led data will be written out over
 #define DATA_PIN 5
@@ -59,7 +60,7 @@ const unsigned int hubPort = 39500;           // smartthings hub port
 // This is an array of leds.  One item for each led in your strip.
 CRGB leds[NUM_LEDS];
 
-bool turnOnLights = false;
+int turnOnLights = 0;
 int colorOffset = 0;
 
 
@@ -70,11 +71,11 @@ void setup() {
   //  FASTLED setup
   //******************************************************************************************
   // sanity check delay - allows reprogramming if accidently blowing power w/leds
-  delay(500);
+  delay(1000);
 
 
-Serial.print("checking turnOnLights in setup:");
- Serial.println(turnOnLights);
+//Serial.print("checking turnOnLights in setup:");
+ //Serial.println(turnOnLights);
 
  
   FastLED.addLeds<TM1803, DATA_PIN, RGB>(leds, NUM_LEDS);
@@ -103,6 +104,7 @@ Serial.print("checking turnOnLights in setup:");
   //Executors
   static st::EX_Switch              executor1(F("switch1"), PIN_SWITCH_1, LOW, true);
   static st::EX_Switch              executor2(F("switch2"), PIN_SWITCH_2, LOW, true);
+  static st::EX_Switch              executor3(F("switch3"), PIN_SWITCH_3, LOW, true);
 
   //*****************************************************************************
   //  Configure debug print output from each main class
@@ -139,7 +141,7 @@ Serial.print("checking turnOnLights in setup:");
   //*****************************************************************************
   st::Everything::addExecutor(&executor1);
   st::Everything::addExecutor(&executor2);
-
+  st::Everything::addExecutor(&executor3);
   //*****************************************************************************
   //Initialize each of the devices which were added to the Everything Class
   //*****************************************************************************
@@ -148,6 +150,13 @@ Serial.print("checking turnOnLights in setup:");
 }
 
 void fadeall() {
+  for (int i = 0; i < NUM_LEDS; i++) {
+    leds[i].nscale8(250);
+    //leds[i] = CRGB::Black;
+  }
+}
+
+void alltoblack() {
   for (int i = 0; i < NUM_LEDS; i++) {
     //leds[i].nscale8(250);
     leds[i] = CRGB::Black;
@@ -170,16 +179,33 @@ void loop() {
  //Serial.print("checking turnOnLights:");
  //Serial.println(turnOnLights);
 
-  if (turnOnLights == true) {
+  if (turnOnLights == 1 || turnOnLights == 2 || turnOnLights == 5) {
     // Move a single white led
-    for (int whiteLed = 0; whiteLed < NUM_LEDS; whiteLed = whiteLed + 1) {
+    //for (int i = 0; i < NUM_LEDS; i = i + 1) {
+    for(int i = (NUM_LEDS)-1; i >= 0; i--) {
       // Turn our current led on to white, then show the leds
-      //leds[whiteLed] = CRGB::Green;
-      leds[whiteLed] = CHSV(colorOffset, 255, 255);
+      //leds[i] = CRGB::Green;
+      //leds[i] = CRGB::Yellow;
+      leds[i] = CHSV(colorOffset, 255, 255);
 
-      if (whiteLed > 0 ) {
-        leds[whiteLed - 1 ] = CHSV(colorOffset, 255, 80);
+// lightning yellow is 215
+// yellow 225
+
+      if (turnOnLights == 5 ) {
+         if (i > 0 ) {
+           leds[i - 1 ] = CHSV(255, 255, 180); // 155 before
+         } 
+         if (i - 1 > 0 ) {
+            leds[i - 2 ] = CHSV(colorOffset, 255, 120); // 155 before
+         }
+      } else {
+         if (i > 0 ) {
+           leds[i - 1 ] = CHSV(colorOffset, 255, 155); // 155 before
+         } 
+        
       }
+
+ 
 
       // Show the leds (only one of which is set to white, from above)
       FastLED.show();
@@ -187,16 +213,18 @@ void loop() {
 
       //fadeall();
       // Wait a little bit
-      delay(80);
+      delay(14);
 
 
       // Turn our current led back to black for the next loop around
-      leds[whiteLed] = CRGB::Black;
-      if (whiteLed > 0 ) {
-        leds[whiteLed - 1 ] = CRGB::Black;
+      leds[i] = CRGB::Black;
+      if (i > 0 ) {
+        leds[i - 1 ] = CRGB::Black;
       }
     }
 
+  } else if (turnOnLights == 3 || turnOnLights == 4) {
+    cylonEffect();
   }
 }
 
@@ -211,17 +239,26 @@ void callback(const String &msg)
 
   Serial.println(msg.indexOf("on"));
   if (msg.indexOf("on") > -1) {
-    if (msg.indexOf("switch1") > -1) {
+    if (msg.indexOf("switch1") > -1 && turnOnLights == 0) {
       colorOffset = 0;
-    } else if (msg.indexOf("switch2") > -1) {
+      turnOnLights = 1;
+    } else if (msg.indexOf("switch2") > -1 && turnOnLights == 0) {
       colorOffset = 120;
+      turnOnLights = 2;
+    } else if (msg.indexOf("switch3") > -1 && turnOnLights == 0) {
+      turnOnLights = 3;
+    } else if (msg.indexOf("switch3") > -1 && turnOnLights == 1) {
+      turnOnLights = 4;
+    } else if (msg.indexOf("switch2") > -1 && turnOnLights == 1) {
+      colorOffset = 225;
+      turnOnLights = 5;
     }
 
     Serial.println("got an on signal :" + msg);
-    turnOnLights = true;
+    
   } else if (msg.indexOf("off") > -1) { 
-    turnOnLights = false;
-    fadeall();
+    turnOnLights = 0;
+    alltoblack();
     FastLED.show();
   }
     //st::receiveSmartString("switch1 off");
@@ -241,6 +278,40 @@ void callback(const String &msg)
 }
      
 
-  
+void cylonEffect() {
+  static uint8_t hue = 0;
+  Serial.print("x");
+  // First slide the led in one direction
+  for(int i = 0; i < NUM_LEDS; i++) {
+    // Set the i'th led to red 
+    leds[i] = CHSV(hue++, 255, 255);
+    // Show the leds
+    FastLED.show(); 
+    // now that we've shown the leds, reset the i'th led to black
+    // leds[i] = CRGB::Black;
+    if (turnOnLights == 4) {
+      alltoblack();
+    } else {
+       fadeall();
+    }
+    // Wait a little bit before we loop around and do it again
+    delay(10);
+  }
+  Serial.print("x");
+
+  // Now go in the other direction.  
+  for(int i = (NUM_LEDS)-1; i >= 0; i--) {
+    // Set the i'th led to red 
+    leds[i] = CHSV(hue++, 255, 255);
+    // Show the leds
+    FastLED.show();
+    // now that we've shown the leds, reset the i'th led to black
+    // leds[i] = CRGB::Black;
+    fadeall();
+    // Wait a little bit before we loop around and do it again
+    delay(10);
+  }
+    
+}
  
 
