@@ -34,7 +34,7 @@
 
 #define LEDPIN 13
 
-#define UNLOCK_PIN 3
+#define UNLOCK_PIN 12
 
 
 
@@ -47,55 +47,22 @@
 
 #define MAX_FAILED 3
 //#define LOCKOUT_TIME 300000 // 5 minutes
-#define LOCKOUT_TIME 3000
-
-// variables will change:
-//int sensorState = 0, lastState=0;         // variable for reading the pushbutton status
-
-//void setup() {
-//  // initialize the LED pin as an output:
-//  pinMode(LEDPIN, OUTPUT);      
-//  // initialize the sensor pin as an input:
-//  pinMode(SENSORPIN, INPUT);     
-//  digitalWrite(SENSORPIN, HIGH); // turn on the pullup
-//  
-//  Serial.begin(9600);
-//}
-//
-//void loop(){
-//  // read the state of the pushbutton value:
-//  sensorState = digitalRead(SENSORPIN);
-//
-//  // check if the sensor beam is broken
-//  // if it is, the sensorState is LOW:
-//  if (sensorState == LOW) {     
-//    // turn LED on:
-//    digitalWrite(LEDPIN, HIGH);  
-//  } 
-//  else {
-//    // turn LED off:
-//    digitalWrite(LEDPIN, LOW); 
-//  }
-//  
-//  if (sensorState && !lastState) {
-//    Serial.println("Unbroken");
-//  } 
-//  if (!sensorState && lastState) {
-//    Serial.println("Broken");
-//  }
-//  lastState = sensorState;
-//}
+#define LOCKOUT_TIME 10000
 
 
-#define LED0 11
-#define LED1 12
-#define LED2 14
-#define LED3 15
-#define LED4 16
+// if successful indicates how long the lock will remain unlocked allowing people to enter.
+// defaults to 30 secs
+#define UNLOCKED_TIME 30000
+
 
 int pinLEDS[] = {
   11,12,14,15,16
 }; 
+
+//all pins on correct order to match led lights
+int orderedSensorPins[] = {
+  5,6,7,8,9
+};
 
 int timer = 100;           // The higher the number, the slower the timing.
 
@@ -113,13 +80,13 @@ int lastBookState = 0;
 
 int failedAttempts = 0;
 
-int pinCount = sizeof(sensorStates)/sizeof(int);       // the number of pins (i.e. the length of the array)
+int pinCount = 5;       // the number of pins (i.e. the length of the array)
 
 // How many leds are in the strip?
 #define NUM_LEDS 5
 
 // Data pin that led data will be written out over
-#define DATA_PIN 2
+#define DATA_PIN 3
 
 // This is an array of leds.  One item for each led in your strip.
 CRGB leds[NUM_LEDS];
@@ -181,28 +148,72 @@ int validate(int pin , int states[], int pins[] ) {
     }
   }
 
-  void resetLEDs() {
-     for (int i =0; i < (sizeof(pinLEDS)/sizeof(int));i++) {
-      //turn off
-    }
-  }
+
   /**
    * turn on the matching LED light
    *  type 0 indicates off
    *  type 1 - indicates good or valid combination (green or blue)
    *  type 2 - indicates the wrong combination (red or yellow)
    */
-  void signalLED (int count, int type) {
+  void successLED(int success){
+    // If success is 1, make all leds green, if not, make them red.
+  
+    if (int success = 1){
+      for (int index = 0; index < 5; index++){
+        leds[index] = CHSV(112, 93, 63);
+        //Green
+      }
+    FastLED.show();
+    }
+    else {
+      for (int index = 0; index < 5; index++){
+        leds[index] = CHSV(0, 100, 70);
+        //Red
+      }
+    FastLED.show();
+    }
 
-  CRGB color = CRGB::Black;
-  if (type = 1) {
-     color  = CHSV(120, 255, 255); // blue
-  } else {
-    color = CHSV(225, 255, 255); //yellow
+    delay(3000);
+    alltoblack();
+    FastLED.show();
   }
+  void signalLED(int color) {
 
-  leds[count] = color;
-
+  for (int j = 0; j < pinCount; j++) {
+    int sensorState = 0;
+  
+    
+    sensorState = digitalRead(orderedSensorPins[j]);
+   
+    if (sensorState == LOW  && color == 1){
+      //Blue
+      leds[j] = CHSV(203, 58, 255);
+      Serial.println("here in blue");
+      Serial.print(sensorState);
+   Serial.print("," );
+   Serial.println(j);
+    }
+    else if (sensorState == LOW && color == 2){
+      //Green
+      leds[j] = CHSV(112, 93, 63);
+    }
+    else if (sensorState == LOW && color == 3){
+      //Yellow
+      leds[j] = CHSV(63, 93, 92);
+    }
+    else if(sensorState == LOW && color == 4){
+      //Orange
+      leds[j] = CHSV(30, 100, 80);
+    }
+    else if(sensorState == LOW && color == 4) {
+      //Violet
+      leds[j] = CHSV(292, 100, 76);
+    }
+    else {
+      leds[j] = CHSV(255, 0, 0);
+    }
+  }
+    
   FastLED.show();
  
   }
@@ -217,7 +228,7 @@ void alltoblack() {
 
 
 void setup() {
-
+  
   
   //******************************************************************************************
   //  FASTLED setup
@@ -231,7 +242,9 @@ void setup() {
   
   // initialize the book pin as an input:
   pinMode(BOOKPIN, INPUT_PULLUP);     
- 
+
+  // pin that sends unlock signal to mag locks when successful combination
+  pinMode(UNLOCK_PIN, OUTPUT);
   
   Serial.begin(9600); 
   // the array elements are numbered from 0 to (pinCount - 1).
@@ -244,6 +257,7 @@ void setup() {
   }
 
   printState();
+  successLED(1);
 
 }
 
@@ -311,9 +325,15 @@ void loop() {
        
           // turn the pin on:
           blink(1);
-           Serial.println("Got the code unlocked !!!");
+          Serial.println("Got the code unlocked !!!");
+          digitalWrite(UNLOCK_PIN, HIGH);
+          successLED(1);
+          // wait for 30 seconds then lock mag locks again.
+          delay(UNLOCKED_TIME);
+          digitalWrite(UNLOCK_PIN, LOW);
           failedAttempts = 0;
           clearStates();
+          
        } else {
   
         failedAttempts +=1;
@@ -321,6 +341,7 @@ void loop() {
         
         Serial.println(msg + failedAttempts);
         clearStates();
+        successLED(0);
         blink(2);
        }
      }
@@ -338,6 +359,9 @@ void loop() {
       
     }
 
+    
+  int ledColor = 1;
+  signalLED(ledColor);
   }
 
   
