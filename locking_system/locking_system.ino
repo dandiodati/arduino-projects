@@ -115,11 +115,22 @@ int findNextSlot(int pressed[] ) {
 }
 
 int validateCode(int states[], int pins[] ) {
-    for (int i =0; states[i] != pins[i];i++) {
-      return 0;
+
+    int i = 0;
+    int success = 1;
+    
+    while (success == 1&& i < pinCount) {
+
+      if(states[i] != pins[i]) {
+        success = 0;
+      } 
+      i += 1;
+     
     } 
 
-    return 1;
+    Serial.print("validate ");
+    Serial.println(i);
+    return success;
   }
 
 
@@ -158,25 +169,38 @@ int validate(int pin , int states[], int pins[] ) {
   void successLED(int success){
     // If success is 1, make all leds green, if not, make them red.
   
-    if (int success = 1){
+    if (success == 1){
       for (int index = 0; index < 5; index++){
-        leds[index] = CHSV(112, 93, 63);
+        leds[index] = CHSV(122, 250, 255);
         //Green
       }
     FastLED.show();
     }
     else {
-      for (int index = 0; index < 5; index++){
-        leds[index] = CHSV(0, 100, 70);
-        //Red
+      for (int j =0; j < 3;j++ ) {
+        alltoblack();
+        FastLED.show();
+        delay(500);
+        for (int index = 0; index < NUM_LEDS; index+=1){
+          leds[index] = CHSV(0, 255, 255);
+          //Red
+        }
+        FastLED.show();
+        delay(500);
+        
       }
-    FastLED.show();
+    
     }
+    
+  }
 
-    delay(3000);
+  void resetLeds() {
+
     alltoblack();
     FastLED.show();
   }
+
+  
   void signalLED(int color) {
 
   for (int j = 0; j < pinCount; j++) {
@@ -187,27 +211,24 @@ int validate(int pin , int states[], int pins[] ) {
    
     if (sensorState == LOW  && color == 1){
       //Blue
-      leds[j] = CHSV(203, 58, 255);
-      Serial.println("here in blue");
-      Serial.print(sensorState);
-   Serial.print("," );
-   Serial.println(j);
+      leds[j] = CHSV(122, 230, 255);
+      
     }
     else if (sensorState == LOW && color == 2){
       //Green
-      leds[j] = CHSV(112, 93, 63);
+      leds[j] = CHSV(112, 250, 63);
     }
     else if (sensorState == LOW && color == 3){
       //Yellow
-      leds[j] = CHSV(63, 93, 92);
+      leds[j] = CHSV(63, 240, 92);
     }
     else if(sensorState == LOW && color == 4){
       //Orange
-      leds[j] = CHSV(30, 100, 80);
+      leds[j] = CHSV(30, 240, 80);
     }
     else if(sensorState == LOW && color == 4) {
       //Violet
-      leds[j] = CHSV(292, 100, 76);
+      leds[j] = CHSV(292, 255, 76);
     }
     else {
       leds[j] = CHSV(255, 0, 0);
@@ -331,6 +352,7 @@ void loop() {
           // wait for 30 seconds then lock mag locks again.
           delay(UNLOCKED_TIME);
           digitalWrite(UNLOCK_PIN, LOW);
+          resetLeds();
           failedAttempts = 0;
           clearStates();
           
@@ -342,6 +364,7 @@ void loop() {
         Serial.println(msg + failedAttempts);
         clearStates();
         successLED(0);
+        
         blink(2);
        }
      }
@@ -354,9 +377,10 @@ void loop() {
       clearStates();
       String msg = "Max attempts lockout occured ";
       Serial.println(msg + failedAttempts);
+      successLED(0);
       delay(LOCKOUT_TIME); // lock time 5 minutes
       failedAttempts = 0;
-      
+      resetLeds();
     }
 
     
