@@ -67,7 +67,7 @@ int orderedSensorPins[] = {
 int timer = 100;           // The higher the number, the slower the timing.
 
 int sensorPins[] = {
-  6,5,7,9,8
+  6,5,7,8,9
 };       // an array of pin numbers to which IR switches are attached
          // also the combination 2,1,3,5,4
 
@@ -171,8 +171,10 @@ int validate(int pin , int states[], int pins[] ) {
   
     if (success == 1){
       for (int index = 0; index < 5; index++){
-        leds[index] = CHSV(122, 250, 255);
+        leds[index] = CHSV(175, 250, 240);
         //Green
+        //leds[index] = CHSV(79, 248, 250);
+        //Violet
       }
     FastLED.show();
     }
@@ -216,19 +218,19 @@ int validate(int pin , int states[], int pins[] ) {
     }
     else if (sensorState == LOW && color == 2){
       //Green
-      leds[j] = CHSV(112, 250, 63);
+      leds[j] = CHSV(175, 250, 240);
     }
     else if (sensorState == LOW && color == 3){
       //Yellow
-      leds[j] = CHSV(63, 240, 92);
+      leds[j] = CHSV(221, 240, 254);
     }
     else if(sensorState == LOW && color == 4){
       //Orange
-      leds[j] = CHSV(30, 240, 80);
+      leds[j] = CHSV(243, 240, 240);
     }
-    else if(sensorState == LOW && color == 4) {
+    else if(sensorState == LOW && color == 5) {
       //Violet
-      leds[j] = CHSV(292, 255, 76);
+      leds[j] = CHSV(79, 248, 250);
     }
     else {
       leds[j] = CHSV(255, 0, 0);
