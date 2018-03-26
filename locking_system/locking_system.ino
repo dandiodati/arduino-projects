@@ -26,6 +26,51 @@
 #include <dmx.h>
 #include <power_mgt.h>
 
+//******************************************************************************************
+//******************************************************************************************
+// SmartThings Library for Arduino Ethernet W5100 Shield
+//******************************************************************************************
+#include <SmartThingsEthernetW5100.h>    //Library to provide API to the SmartThings Ethernet W5100 Shield
+
+//******************************************************************************************
+// ST_Anything Library
+//******************************************************************************************
+#include <Constants.h>       //Constants.h is designed to be modified by the end user to adjust behavior of the ST_Anything library
+#include <Device.h>          //Generic Device Class, inherited by Sensor and Executor classes
+#include <Executor.h>        //Generic Executor Class, typically receives data from ST Cloud (e.g. Switch)
+#include <Everything.h>      //Master Brain of ST_Anything library that ties everything together and performs ST Shield communications
+
+//Implements an Interrupt Sensor (IS) and Executor to monitor the status of a digital input pin and control a digital output pin
+//#include <IS_Button.h>       //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
+#include <EX_Switch.h>       //Implements an Executor (EX) via a digital output to a relay
+
+//"RESERVED" pins for W5100 Ethernet Shield - best to avoid
+#define PIN_4_RESERVED            4   //reserved by W5100 Shield on both UNO and MEGA
+#define PIN_1O_RESERVED           10  //reserved by W5100 Shield on both UNO and MEGA
+#define PIN_11_RESERVED           11  //reserved by W5100 Shield on UNO
+#define PIN_12_RESERVED           12  //reserved by W5100 Shield on UNO
+#define PIN_13_RESERVED           13  //reserved by W5100 Shield on UNO
+
+#define PIN_SWITCH_1              5  //SmartThings Capability "Switch"
+#define PIN_SWITCH_2              6  //SmartThings Capability "Switch"
+#define PIN_SWITCH_3              7  //SmartThings Capability "Switch"
+
+//******************************************************************************************
+//W5100 Ethernet Shield Information ce:4d:c6:02:47:4b
+//******************************************************************************************
+
+byte mac[] = {0x06, 0x4d, 0xc6, 0x02, 0x47, 0x4b}; //MAC address, leave first octet 0x06, change others to be unique //  <---You must edit this line!
+IPAddress ip(192, 168, 1, 133);               //Arduino device IP Address                   //  <---You must edit this line!
+IPAddress gateway(192, 168, 1, 1);            //router gateway                              //  <---You must edit this line!
+IPAddress subnet(255, 255, 255, 0);           //LAN sceubnet mask                             //  <---You must edit this line!
+IPAddress dnsserver(192, 168, 1, 1);          //DNS server                                  //  <---You must edit this line!
+const unsigned int serverPort = 8090;         // port to run the http server on
+
+/// Smartthings hub information
+IPAddress hubIp(192, 168, 1, 51);            // smartthings hub ip                         //  <---You must edit this line!
+const unsigned int hubPort = 39500;           // smartthings hub port
+
+
 /* 
   IR Breakbeam sensor demo!
 
@@ -34,7 +79,7 @@
 
 #define LEDPIN 13
 
-#define UNLOCK_PIN 12
+#define UNLOCK_PIN A0
 
 
 
@@ -93,23 +138,15 @@ CRGB leds[NUM_LEDS];
 
 
 int findNextSlot(int pressed[] ) {
- //Serial.print("finding next slot: ");
- //Serial.print(pinCount);
- //Serial.print(":");
 
   for (int i = 0; i < pinCount; i++ ) {
-    //Serial.print (pressed[i]);
-    //  Serial.print(",");
+    
     if (pressed[i] == 0 ) {
-     // Serial.print(": returning " );
-     // Serial.print(i);
-      //Serial.print(" = ");
-      //Serial.println(pressed[i]);
       return i;
     }
   }
-  //Serial.print(": returning " );
-  //Serial.println(-1);
+  Serial.print(": returning " );
+  Serial.println(-1);
   return -1;
   
 }
@@ -148,23 +185,14 @@ int validate(int pin , int states[], int pins[] ) {
  
   }
 
-  void blink(int count) {
-
-    for (int i = count; i > 0; i--) {
-    // turn the pin on:
-        digitalWrite(LEDPIN, HIGH);
-        delay(500);
-         // turn the pin off:
-        digitalWrite(LEDPIN, LOW);
-    }
-  }
 
 
   /**
    * turn on the matching LED light
    *  type 0 indicates off
    *  type 1 - indicates good or valid combination (green or blue)
-   *  type 2 - indicates the wrong combination (red or yellow)
+   *  type 2 - indicates the wrong combination (yellow)
+   *  type 3 - indicates the wrong combination (red)
    */
   void successLED(int success){
     // If success is 1, make all leds green, if not, make them red.
@@ -177,6 +205,8 @@ int validate(int pin , int states[], int pins[] ) {
         //Violet
       }
     FastLED.show();
+    } else if (success = 2) {
+      flashLEDS(CHSV(221, 240, 254), 2);
     }
     else {
       for (int j =0; j < 3;j++ ) {
@@ -194,6 +224,21 @@ int validate(int pin , int states[], int pins[] ) {
     
     }
     
+  }
+  
+  void flashLEDS(CHSV color, int count) {
+    for (int j =0; j < count;j++ ) {
+        alltoblack();
+        FastLED.show();
+        delay(500);
+        for (int index = 0; index < NUM_LEDS; index+=1){
+          leds[index] = color;
+          //Red
+        }
+        FastLED.show();
+        delay(500);
+        
+      }
   }
 
   void resetLeds() {
@@ -251,6 +296,69 @@ void alltoblack() {
 
 
 void setup() {
+
+    //******************************************************************************************
+  //  ST_Anything setup
+  //Declare each Device that is attached to the Arduino
+  //  Notes: - For each device, there is typically a corresponding "tile" defined in your
+  //           SmartThings Device Hanlder Groovy code, except when using new COMPOSITE Device Handler
+  //         - For details on each device's constructor arguments below, please refer to the
+  //           corresponding header (.h) and program (.cpp) files.
+  //         - The name assigned to each device (1st argument below) must match the Groovy
+  //           Device Handler names.  (Note: "temphumid" below is the exception to this rule
+  //           as the DHT sensors produce both "temperature" and "humidity".  Data from that
+  //           particular sensor is sent to the ST Hub in two separate updates, one for
+  //           "temperature" and one for "humidity")
+  //         - The new Composite Device Handler is comprised of a Parent DH and various Child
+  //           DH's.  The names used below MUST not be changed for the Automatic Creation of
+  //           child devices to work properly.  Simply increment the number by +1 for each duplicate
+  //           device (e.g. contact1, contact2, contact3, etc...)  You can rename the Child Devices
+  //           to match your specific use case in the ST Phone Application.
+  //******************************************************************************************
+  //Executors
+  static st::EX_Switch              executor1(F("switch1"), PIN_SWITCH_1, LOW, true);
+  static st::EX_Switch              executor2(F("switch2"), PIN_SWITCH_2, LOW, true);
+  
+  //*****************************************************************************
+  //  Configure debug print output from each main class
+  //*****************************************************************************
+  st::Everything::debug = true;
+  st::Executor::debug = true;
+  st::Device::debug = true;
+  //st::PollingSensor::debug=true;
+  //st::InterruptSensor::debug = true;
+
+  //*****************************************************************************
+  //Initialize the "Everything" Class
+  //*****************************************************************************
+
+  //Initialize the optional local callback routine (safe to comment out if not desired)
+  st::Everything::callOnMsgSend = callback;
+
+  //Create the SmartThings EthernetW5100 Communications Object
+  //STATIC IP Assignment - Recommended
+  st::Everything::SmartThing = new st::SmartThingsEthernetW5100(mac, ip, gateway, subnet, dnsserver, serverPort, hubIp, hubPort, st::receiveSmartString);
+
+  //DHCP IP Assigment - Must set your router's DHCP server to provice a static IP address for this device's MAC address
+  //st::Everything::SmartThing = new st::SmartThingsEthernetW5100(mac, serverPort, hubIp, hubPort, st::receiveSmartString);
+
+  //Run the Everything class' init() routine which establishes Ethernet communications with the SmartThings Hub
+  st::Everything::init();
+
+  //*****************************************************************************
+  //Add each sensor to the "Everything" Class
+  //*****************************************************************************
+
+  //*****************************************************************************
+  //Add each executor to the "Everything" Class
+  //*****************************************************************************
+  st::Everything::addExecutor(&executor1);
+  st::Everything::addExecutor(&executor2);
+ 
+  //*****************************************************************************
+  //Initialize each of the devices which were added to the Everything Class
+  //*****************************************************************************
+  st::Everything::initDevices();
   
   
   //******************************************************************************************
@@ -269,7 +377,7 @@ void setup() {
   // pin that sends unlock signal to mag locks when successful combination
   pinMode(UNLOCK_PIN, OUTPUT);
   
-  Serial.begin(9600); 
+  //Serial.begin(115200); 
   // the array elements are numbered from 0 to (pinCount - 1).
   // use a for loop to initialize each pin as an output:
   for (int thisPin = 0; thisPin < pinCount; thisPin++) {
@@ -309,25 +417,33 @@ void printState() {
 void loop() {
 
   
+  //*****************************************************************************
+  //Execute the Everything run method which takes care of "Everything"
+  //*****************************************************************************
+  st::Everything::run();
+
     
   // loop from the lowest pin to the highest:
   for (int thisPin = 0; thisPin < pinCount; thisPin++) {
     int sensorState = 0; 
-
+    
+    delay(30);
+    
     sensorState = digitalRead(sensorPins[thisPin]);
 
      if (sensorState == LOW && lastState == 0  ) {
         int next = findNextSlot(sensorStates);
-        Serial.print("debug: ");
-        Serial.println(next);
+        //Serial.print("debug: ");
+        //Serial.println(next);
         if (next != -1 ) { 
           sensorStates[next] = sensorPins[thisPin];
         } else {
           failedAttempts += 1;
           String msg = "Invalid code too many, failed attempts ";
-          Serial.println(msg + failedAttempts);
-          //clearStates();
-          blink(2);
+          Serial.println(msg + failedAttempts); 
+          successLED(2);
+          clearStates();
+          //blink(2);
         }
 
         printState();
@@ -347,7 +463,7 @@ void loop() {
        if (findNextSlot(sensorStates) == -1 && validateCode(sensorStates, sensorPins)) {
        
           // turn the pin on:
-          blink(1);
+          //blink(1);
           Serial.println("Got the code unlocked !!!");
           digitalWrite(UNLOCK_PIN, HIGH);
           successLED(1);
@@ -365,9 +481,9 @@ void loop() {
         
         Serial.println(msg + failedAttempts);
         clearStates();
-        successLED(0);
+        successLED(2);
         
-        blink(2);
+        //blink(2);
        }
      }
 
@@ -375,14 +491,15 @@ void loop() {
      
 
     if (failedAttempts >= MAX_FAILED) {
-      blink(3);
+      //blink(3);
       clearStates();
       String msg = "Max attempts lockout occured ";
       Serial.println(msg + failedAttempts);
-      successLED(0);
+      successLED(3);
       delay(LOCKOUT_TIME); // lock time 5 minutes
       failedAttempts = 0;
       resetLeds();
+      
     }
 
     
@@ -390,4 +507,48 @@ void loop() {
   signalLED(ledColor);
   }
 
+//******************************************************************************************
+//st::Everything::callOnMsgSend() optional callback routine.  This is a sniffer to monitor
+//    data being sent to ST.  This allows a user to act on data changes locally within the
+//    Arduino sktech withotu having to rely on the ST Cloud for time-critical tasks.
+//******************************************************************************************
+void callback(const String &msg)
+{
+
+  //Serial.println(msg.indexOf("on"));
+//  if (msg.indexOf("on") > -1) {
+//    if (msg.indexOf("switch1") > -1 && turnOnLights == 0) {
+//      colorOffset = 0;
+//      turnOnLights = 1;
+//    } else if (msg.indexOf("switch2") > -1 && turnOnLights == 0) {
+//      colorOffset = 120;
+//      turnOnLights = 2;
+//    } else if (msg.indexOf("switch3") > -1 && turnOnLights == 0) {
+//      turnOnLights = 3;
+//    } else if (msg.indexOf("switch3") > -1 && turnOnLights == 1) {
+//      turnOnLights = 4;
+//    } else if (msg.indexOf("switch2") > -1 && turnOnLights == 1) {
+//      colorOffset = 225;
+//      turnOnLights = 5;
+//    }
+
+    Serial.println("got an on signal :" + msg);
+    
+  //} 
+    //st::receiveSmartString("switch1 off");
+    //st::receiveSmartString("switch2 off");
+
+   //Uncomment if it weould be desirable to using this function
+  //Serial.print(F("ST_Anything_Miltiples Callback: Sniffed data = "));
+
+
+  //TODO:  Add local logic here to take action when a device's value/state is changed
+
+  //Masquerade as the ThingShield to send data to the Arduino, as if from the ST Cloud (uncomment and edit following line(s) as you see fit)
+  //st::receiveSmartString("Put your command here!");  //use same strings that the Device Handler would send
+
+  //st::receiveSmartString("Put your command here!");  //use same strings that the Device Handler would send
+
+}
   
+
