@@ -51,9 +51,9 @@
 #define PIN_12_RESERVED           12  //reserved by W5100 Shield on UNO
 #define PIN_13_RESERVED           13  //reserved by W5100 Shield on UNO
 
-#define PIN_SWITCH_1              5  //SmartThings Capability "Switch"
-#define PIN_SWITCH_2              6  //SmartThings Capability "Switch"
-#define PIN_SWITCH_3              7  //SmartThings Capability "Switch"
+#define PIN_SWITCH_1              A1  //SmartThings Capability "Switch"
+#define PIN_SWITCH_2              A2  //SmartThings Capability "Switch"
+
 
 //******************************************************************************************
 //W5100 Ethernet Shield Information ce:4d:c6:02:47:4b
@@ -109,7 +109,7 @@ int orderedSensorPins[] = {
   5,6,7,8,9
 };
 
-int timer = 100;           // The higher the number, the slower the timing.
+
 
 int sensorPins[] = {
   6,5,7,8,9
@@ -126,6 +126,9 @@ int lastBookState = 0;
 int failedAttempts = 0;
 
 int pinCount = 5;       // the number of pins (i.e. the length of the array)
+
+int simpleMode = 0;
+int lockdownMode = 0;
 
 // How many leds are in the strip?
 #define NUM_LEDS 5
@@ -151,32 +154,6 @@ int findNextSlot(int pressed[] ) {
   
 }
 
-int validateCode(int states[], int pins[] ) {
-
-    int i = 0;
-    int success = 1;
-    
-    while (success == 1&& i < pinCount) {
-
-      if(states[i] != pins[i]) {
-        success = 0;
-      } 
-      i += 1;
-     
-    } 
-
-    Serial.print("validate ");
-    Serial.println(i);
-    return success;
-  }
-
-
-int validate(int pin , int states[], int pins[] ) {
-    if(states[pin] != pins[pin]) {
-      return 0;
-    } else
-       return 1;
-  }
   
   void clearStates() {
     for (int i =0; i < (sizeof(sensorStates)/sizeof(int));i++) {
@@ -208,27 +185,17 @@ int validate(int pin , int states[], int pins[] ) {
     } else if (success = 2) {
       flashLEDS(CHSV(221, 240, 254), 2);
     }
-    else {
-      for (int j =0; j < 3;j++ ) {
-        alltoblack();
-        FastLED.show();
-        delay(500);
-        for (int index = 0; index < NUM_LEDS; index+=1){
-          leds[index] = CHSV(0, 255, 255);
-          //Red
-        }
-        FastLED.show();
-        delay(500);
-        
-      }
-    
+    else if(success == 3){
+      flashLEDS(CHSV(0, 255, 255), 3);
+    } else if (success == 4) {
+      flashLEDS(CHSV(79, 248, 250), 3);
     }
     
   }
   
-  void flashLEDS(CHSV color, int count) {
+  void flashLEDS(CRGB color, int count) {
     for (int j =0; j < count;j++ ) {
-        alltoblack();
+        resetLeds();
         FastLED.show();
         delay(500);
         for (int index = 0; index < NUM_LEDS; index+=1){
@@ -243,7 +210,10 @@ int validate(int pin , int states[], int pins[] ) {
 
   void resetLeds() {
 
-    alltoblack();
+    for (int i = 0; i < NUM_LEDS; i++) {
+    //leds[i].nscale8(250);
+    leds[i] = CRGB::Black;
+  }
     FastLED.show();
   }
 
@@ -252,34 +222,34 @@ int validate(int pin , int states[], int pins[] ) {
 
   for (int j = 0; j < pinCount; j++) {
     int sensorState = 0;
-  
-    
+     
     sensorState = digitalRead(orderedSensorPins[j]);
-   
-    if (sensorState == LOW  && color == 1){
-      //Blue
-      leds[j] = CHSV(122, 230, 255);
-      
-    }
-    else if (sensorState == LOW && color == 2){
-      //Green
-      leds[j] = CHSV(175, 250, 240);
-    }
-    else if (sensorState == LOW && color == 3){
-      //Yellow
-      leds[j] = CHSV(221, 240, 254);
-    }
-    else if(sensorState == LOW && color == 4){
-      //Orange
-      leds[j] = CHSV(243, 240, 240);
-    }
-    else if(sensorState == LOW && color == 5) {
-      //Violet
-      leds[j] = CHSV(79, 248, 250);
-    }
-    else {
-      leds[j] = CHSV(255, 0, 0);
-    }
+    leds[j] = CHSV(122, 230, 255); //blue
+    
+//    if (sensorState == LOW  && color == 1){
+//      //Blue
+//      leds[j] = CHSV(122, 230, 255);
+//      
+//    }
+//    else if (sensorState == LOW && color == 2){
+//      //Green
+//      leds[j] = CHSV(175, 250, 240);
+//    }
+//    else if (sensorState == LOW && color == 3){
+//      //Yellow
+//      leds[j] = CHSV(221, 240, 254);
+//    }
+//    else if(sensorState == LOW && color == 4){
+//      //Orange
+//      leds[j] = CHSV(243, 240, 240);
+//    }
+//    else if(sensorState == LOW && color == 5) {
+//      //Violet
+//      leds[j] = CHSV(79, 248, 250);
+//    }
+//    else {
+//      leds[j] = CHSV(255, 0, 0);
+//    }
   }
     
   FastLED.show();
@@ -287,12 +257,7 @@ int validate(int pin , int states[], int pins[] ) {
   }
 
 
-void alltoblack() {
-  for (int i = 0; i < NUM_LEDS; i++) {
-    //leds[i].nscale8(250);
-    leds[i] = CRGB::Black;
-  }
-}
+
 
 
 void setup() {
@@ -316,7 +281,10 @@ void setup() {
   //           to match your specific use case in the ST Phone Application.
   //******************************************************************************************
   //Executors
+  //simple mode (book always opens
   static st::EX_Switch              executor1(F("switch1"), PIN_SWITCH_1, LOW, true);
+  
+  //lockdown mode nothing opens it.
   static st::EX_Switch              executor2(F("switch2"), PIN_SWITCH_2, LOW, true);
   
   //*****************************************************************************
@@ -325,6 +293,7 @@ void setup() {
   st::Everything::debug = true;
   st::Executor::debug = true;
   st::Device::debug = true;
+
   //st::PollingSensor::debug=true;
   //st::InterruptSensor::debug = true;
 
@@ -457,10 +426,28 @@ void loop() {
   }
      int bookState = digitalRead(BOOKPIN);
 
-     // can also check for bypass here then just always allow unlocking.
      if (bookState == HIGH && lastBookState == 0) {
-      
-       if (findNextSlot(sensorStates) == -1 && validateCode(sensorStates, sensorPins)) {
+       
+      int i = 0;
+      int valid = 1;
+    
+      while (valid == 1 && i < pinCount) {
+
+        if(sensorStates[i] != sensorPins[i]) {
+        valid = 0;
+        } 
+        i += 1;
+     
+       } 
+
+       if (lockdownMode == 1 ) {
+         clearStates();
+         String msg = "In lockdown mode";
+         Serial.println(msg);
+         successLED(4);
+         failedAttempts = 0;
+         resetLeds();
+       } else if (simpleMode == 1 || (findNextSlot(sensorStates) == -1 && valid) ) {
        
           // turn the pin on:
           //blink(1);
@@ -473,11 +460,12 @@ void loop() {
           resetLeds();
           failedAttempts = 0;
           clearStates();
-          
+        
        } else {
   
         failedAttempts +=1;
         String msg = " Invalid code, failed attempts ";
+        
         
         Serial.println(msg + failedAttempts);
         clearStates();
@@ -516,24 +504,15 @@ void callback(const String &msg)
 {
 
   //Serial.println(msg.indexOf("on"));
-//  if (msg.indexOf("on") > -1) {
-//    if (msg.indexOf("switch1") > -1 && turnOnLights == 0) {
-//      colorOffset = 0;
-//      turnOnLights = 1;
-//    } else if (msg.indexOf("switch2") > -1 && turnOnLights == 0) {
-//      colorOffset = 120;
-//      turnOnLights = 2;
-//    } else if (msg.indexOf("switch3") > -1 && turnOnLights == 0) {
-//      turnOnLights = 3;
-//    } else if (msg.indexOf("switch3") > -1 && turnOnLights == 1) {
-//      turnOnLights = 4;
-//    } else if (msg.indexOf("switch2") > -1 && turnOnLights == 1) {
-//      colorOffset = 225;
-//      turnOnLights = 5;
-//    }
-
-    Serial.println("got an on signal :" + msg);
-    
+    if (msg.indexOf("switch1 on") > -1 && simpleMode == 0) {
+      simpleMode = 1;
+    } else if (msg.indexOf("switch2 on") > -1 && lockdownMode == 0) {
+      lockdownMode = 1; 
+    }  else if (msg.indexOf("switch1 off") > -1) { 
+      simpleMode = 0;
+    } else if (msg.indexOf("switch2 off") > -1) { 
+      lockdownMode = 0;
+    }
   //} 
     //st::receiveSmartString("switch1 off");
     //st::receiveSmartString("switch2 off");
