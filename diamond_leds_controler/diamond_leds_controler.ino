@@ -19,6 +19,9 @@
 #include <Device.h>          //Generic Device Class, inherited by Sensor and Executor classes
 #include <Executor.h>        //Generic Executor Class, typically receives data from ST Cloud (e.g. Switch)
 #include <Everything.h>      //Master Brain of ST_Anything library that ties everything together and performs ST Shield communications
+#include <Sensor.h>          //Generic Sensor Class, typically provides data to ST Cloud (e.g. Temperature, Motion, etc...)
+
+#include <IS_Contact.h>      //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
 
 //Implements an Interrupt Sensor (IS) and Executor to monitor the status of a digital input pin and control a digital output pin
 #include <IS_Button.h>       //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
@@ -34,6 +37,8 @@
 #define PIN_SWITCH_1              5  //SmartThings Capability "Switch"
 #define PIN_SWITCH_2              6  //SmartThings Capability "Switch"
 #define PIN_SWITCH_3              7  //SmartThings Capability "Switch"
+
+#define PIN_CONTACT_1             26  //SmartThings Capability "Contact Sensor"
 
 //******************************************************************************************
 //W5100 Ethernet Shield Information ce:4d:c6:02:47:4b
@@ -62,6 +67,8 @@ CRGB leds[NUM_LEDS];
 
 int turnOnLights = 0;
 int colorOffset = 0;
+
+int switchStates[] = {0,0,0};
 
 
 // This function sets up the ledsand tells the controller about them
@@ -105,6 +112,8 @@ void setup() {
   static st::EX_Switch              executor1(F("switch1"), PIN_SWITCH_1, LOW, true);
   static st::EX_Switch              executor2(F("switch2"), PIN_SWITCH_2, LOW, true);
   static st::EX_Switch              executor3(F("switch3"), PIN_SWITCH_3, LOW, true);
+
+static st::IS_Contact             sensor11(F("contact1"), PIN_CONTACT_1, LOW, true, 500);
 
   //*****************************************************************************
   //  Configure debug print output from each main class
@@ -193,10 +202,10 @@ void loop() {
 
       if (turnOnLights == 5 ) {
          if (i > 0 ) {
-           leds[i - 1 ] = CHSV(255, 255, 180); // 155 before
+           leds[i - 1 ] = CHSV(255, 255, 255); // 155 before
          } 
          if (i - 1 > 0 ) {
-            leds[i - 2 ] = CHSV(colorOffset, 255, 120); // 155 before
+            leds[i - 2 ] = CHSV(colorOffset, 255, 20); // 155 before
          }
       } else {
          if (i > 0 ) {
@@ -237,36 +246,62 @@ void loop() {
 void callback(const String &msg)
 {
 
-  Serial.println(msg.indexOf("on"));
+  Serial.println("callback :" + msg);
+  
   if (msg.indexOf("on") > -1) {
     if (msg.indexOf("switch1") > -1 && turnOnLights == 0) {
       colorOffset = 0;
       turnOnLights = 1;
+      switchStates[0] = 1;
+      Serial.println("Turnin on red chasing lights");
     } else if (msg.indexOf("switch2") > -1 && turnOnLights == 0) {
       colorOffset = 120;
       turnOnLights = 2;
+      switchStates[1] = 1;
     } else if (msg.indexOf("switch3") > -1 && turnOnLights == 0) {
       turnOnLights = 3;
+      switchStates[2] = 1;
     } else if (msg.indexOf("switch3") > -1 && turnOnLights == 1) {
       turnOnLights = 4;
+      switchStates[2] = 1;
     } else if (msg.indexOf("switch2") > -1 && turnOnLights == 1) {
       colorOffset = 225;
       turnOnLights = 5;
+      switchStates[1] = 1;
     }
 
     Serial.println("got an on signal :" + msg);
     
   } else if (msg.indexOf("off") > -1) { 
-    turnOnLights = 0;
-    alltoblack();
-    FastLED.show();
+    if (msg.indexOf("switch1") > -1) {
+      switchStates[0] = 0;
+    } else if (msg.indexOf("switch2") > -1) {
+      switchStates[1] = 0;
+    } else if (msg.indexOf("switch3") > -1) {
+      switchStates[2] = 0;
+    }
+
+    int isAllOff = 1;
+    for (int i =0; i < 3; i++ ) {
+      if(switchStates[i] == 1) {
+        isAllOff = 0;
+        break;
+      }
+    }
+
+    if (isAllOff == 1 ) {
+      Serial.println("All switches off so turning leds to off");
+       turnOnLights = 0;
+       alltoblack();
+       FastLED.show();
+    }
   }
     //st::receiveSmartString("switch1 off");
     //st::receiveSmartString("switch2 off");
 
    //Uncomment if it weould be desirable to using this function
   //Serial.print(F("ST_Anything_Miltiples Callback: Sniffed data = "));
-  Serial.println(msg);
+  //Serial.println(msg);
 
   //TODO:  Add local logic here to take action when a device's value/state is changed
 
