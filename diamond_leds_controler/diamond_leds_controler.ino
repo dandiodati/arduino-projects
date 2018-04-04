@@ -19,12 +19,12 @@
 #include <Device.h>          //Generic Device Class, inherited by Sensor and Executor classes
 #include <Executor.h>        //Generic Executor Class, typically receives data from ST Cloud (e.g. Switch)
 #include <Everything.h>      //Master Brain of ST_Anything library that ties everything together and performs ST Shield communications
-#include <Sensor.h>          //Generic Sensor Class, typically provides data to ST Cloud (e.g. Temperature, Motion, etc...)
+//#include <Sensor.h>          //Generic Sensor Class, typically provides data to ST Cloud (e.g. Temperature, Motion, etc...)
 
-#include <IS_Contact.h>      //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
+//#include <IS_Contact.h>      //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin
 
 //Implements an Interrupt Sensor (IS) and Executor to monitor the status of a digital input pin and control a digital output pin
-#include <IS_Button.h>       //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
+//#include <IS_Button.h>       //Implements an Interrupt Sensor (IS) to monitor the status of a digital input pin for button presses
 #include <EX_Switch.h>       //Implements an Executor (EX) via a digital output to a relay
 
 //"RESERVED" pins for W5100 Ethernet Shield - best to avoid
@@ -113,7 +113,7 @@ void setup() {
   static st::EX_Switch              executor2(F("switch2"), PIN_SWITCH_2, LOW, true);
   static st::EX_Switch              executor3(F("switch3"), PIN_SWITCH_3, LOW, true);
 
-static st::IS_Contact             sensor11(F("contact1"), PIN_CONTACT_1, LOW, true, 500);
+//static st::IS_Contact             sensor11(F("contact1"), PIN_CONTACT_1, LOW, true, 500);
 
   //*****************************************************************************
   //  Configure debug print output from each main class
@@ -122,7 +122,7 @@ static st::IS_Contact             sensor11(F("contact1"), PIN_CONTACT_1, LOW, tr
   st::Executor::debug = true;
   st::Device::debug = true;
   //st::PollingSensor::debug=true;
-  st::InterruptSensor::debug = true;
+//  st::InterruptSensor::debug = true;
 
   //*****************************************************************************
   //Initialize the "Everything" Class
