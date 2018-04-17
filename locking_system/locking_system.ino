@@ -50,6 +50,10 @@
 #define PIN_11_RESERVED           11  //reserved by W5100 Shield on UNO
 #define PIN_12_RESERVED           12  //reserved by W5100 Shield on UNO
 #define PIN_13_RESERVED           13  //reserved by W5100 Shield on UNO
+#define PIN_50_RESERVED          50  //reserved by W5500 Shield on MEGA
+#define PIN_51_RESERVED          51  //reserved by W5500 Shield on MEGA
+#define PIN_52_RESERVED          52  //reserved by W5500 Shield on MEGA
+#define PIN_53_RESERVED          53  //reserved by W5500 Shield on MEGA
 
 #define PIN_SWITCH_1              A1  //SmartThings Capability "Switch"
 #define PIN_SWITCH_2              A2  //SmartThings Capability "Switch"
@@ -97,7 +101,13 @@ const unsigned int hubPort = 39500;           // smartthings hub port
 
 // if successful indicates how long the lock will remain unlocked allowing people to enter.
 // defaults to 30 secs
-#define UNLOCKED_TIME 30000
+#define UNLOCKED_TIME 10000
+
+
+
+//indicates the last door state only sends eventys when it changes
+// 0 closed 1 open matches highpull of reading mag contact switch
+int lastDoorState = 0;
 
 
 int pinLEDS[] = {
@@ -454,7 +464,12 @@ void loop() {
           Serial.println("Got the code unlocked !!!");
           digitalWrite(UNLOCK_PIN, HIGH);
           successLED(1);
-          // wait for 30 seconds then lock mag locks again.
+
+          //trigger contact just before 
+          st::receiveSmartString("switch3 on");
+           st::Everything::run(); // need to force smartthings to run again
+           lastDoorState = 0;
+          // wait for UNLOCK_TIME seconds then lock mag locks again.
           delay(UNLOCKED_TIME);
           digitalWrite(UNLOCK_PIN, LOW);
           resetLeds();
@@ -490,6 +505,16 @@ void loop() {
       
     }
 
+      // only post smartthings event if we change state so we dont flood ST
+//      int doorState = digitalRead(PIN_CONTACT_1);  // 0 is closed 1 is open
+//      
+//      if (doorState == 0 && lastDoorState == 1) {
+//          st::receiveSmartString("switch3 off");
+//      } else if (doorState == 1 && lastDoorState == 0) {
+//        st::receiveSmartString("switch3 on");
+//      }
+//
+//      lastDoorState = doorState;
     
   int ledColor = 1;
   signalLED(ledColor);
