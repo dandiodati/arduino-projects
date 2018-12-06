@@ -4,3 +4,6 @@
 [submodule "ST_Anything"]
 	path = ST_Anything
 	url = ./ST_Anything/
+[submodule "libraries/aREST"]
+	path = libraries/aREST
+	url = https://github.com/marcoschwartz/aREST.git
