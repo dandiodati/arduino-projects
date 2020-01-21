@@ -1,5 +1,5 @@
 //******************************************************************************************
-//  File: PS_18B20_Temperature.cpp
+//  File: PS_DS18B20_Temperature.cpp
 //  Author: Dan G Ogorchock
 //
 //  Summary:  PS_DS18B20_Temperature is a class which implements both the SmartThings "Temperature Measurement" capability.
@@ -7,16 +7,18 @@
 //			  temperature from a Dallas Semiconductor One Wire DS18B20 series sensor. 
 //
 //			  Create an instance of this class in your sketch's global variable section
-//			  For Example:  st::PS_DS18B20_Temperature sensor1("temperature1", 120, 0, PIN_TEMPERATURE, false);
+//			  For Example:  st::PS_DS18B20_Temperature sensor1(F("temperature1"), 120, 0, PIN_TEMPERATURE, false); (for a single sensor)
+//                          st::PS_DS18B20_Temperature sensor1(F("temperature"), 120, 0, PIN_TEMPERATURE, false, 10, 3); (for 3 sensors)
 //
 //			  st::PS_DS18B20_Temperature() constructor requires the following arguments
-//				- String &name - REQUIRED - the name of the object - must match the Groovy ST_Anything DeviceType tile name
+//				- String &name - REQUIRED - the name of the object - either "temperature1" for a single sensor, or "temperature" for multiple sensors
 //				- long interval - REQUIRED - the polling interval in seconds
 //				- long offset - REQUIRED - the polling interval offset in seconds - used to prevent all polling sensors from executing at the same time
 //				- byte pin - REQUIRED - the Arduino Pin to be used for the One-Wire DS18B20 sensor conenction
 //				- bool In_C - OPTIONAL - true = Report Celsius, false = Report Farenheit (Farentheit is the default)
 //				- byte resolution - OPTIONAL - DS18B20 sensor resolution in bits.  9, 10, 11, or 12.  Defaults to 10 for decent accuracy and performance
 //				- byte num_sensors - OPTIONAL - number of OneWire DS18B20 sensors attached to OneWire bus - Defaults to 1
+//				- byte sensorStartingNum - OPTIONAL - Starting number for sending temperature sensor data when using multiple sensors on one pin - Defaults to 1
 //
 //			  This class supports receiving configuration data from the SmartThings cloud via the ST App.  A user preference
 //			  can be configured in your phone's ST App, and then the "Configure" tile will send the data for all sensors to 
@@ -33,6 +35,8 @@
 //    2016-02-27  Dan Ogorchock  Added support for multiple DS18B20 sensors
 //    2017-08-18  Dan Ogorchock  Modified to send floating point values to SmartThings
 //    2018-08-30  Dan Ogorchock  Modified comment section above to comply with new Parent/Child Device Handler requirements
+//    2019-03-11  Dan Ogorchock  Added new optional parameter for starting sensor number for data transfer
+//    2019-07-05  Dan Ogorchock  Fix bug in multiple sensor support logic
 //
 //
 //******************************************************************************************
@@ -51,14 +55,15 @@ namespace st
 
 //public
 	//constructor - called in your sketch's global variable declaration section
-	PS_DS18B20_Temperature::PS_DS18B20_Temperature(const __FlashStringHelper *name, unsigned int interval, int offset, byte pin, bool In_C, byte resolution, byte num_sensors) :
+	PS_DS18B20_Temperature::PS_DS18B20_Temperature(const __FlashStringHelper *name, unsigned int interval, int offset, byte pin, bool In_C, byte resolution, byte num_sensors, byte sensorStartingNum) :
 		PollingSensor(name, interval, offset),
 		m_dblTemperatureSensorValue(0.0),
 		m_OneWireBus(pin),
 		m_DS18B20(&m_OneWireBus),
 		m_In_C(In_C),
 		m_Resolution(resolution),
-		m_numSensors(num_sensors)
+		m_numSensors(num_sensors),
+		m_sensorStartingNum(sensorStartingNum)
 	{
 		
 	}
@@ -114,15 +119,16 @@ namespace st
 			Serial.println(F("DONE"));
 		}
 
-		for (int index = 1; index <= m_numSensors; index++)
+		byte maxSensorNum = m_sensorStartingNum + m_numSensors - 1;
+		for (int index = m_sensorStartingNum; index <= maxSensorNum; index++)
 		{
 			if (m_In_C)
 			{
-				m_dblTemperatureSensorValue = m_DS18B20.getTempCByIndex(index-1);
+				m_dblTemperatureSensorValue = m_DS18B20.getTempCByIndex(index-m_sensorStartingNum);
 			}
 			else
 			{
-				m_dblTemperatureSensorValue = m_DS18B20.getTempFByIndex(index-1);
+				m_dblTemperatureSensorValue = m_DS18B20.getTempFByIndex(index-m_sensorStartingNum);
 			}
 
 			if (st::PollingSensor::debug) {

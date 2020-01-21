@@ -6,7 +6,7 @@
 //			  It inherits from the st::InterruptSensor class.
 //
 //			  Create an instance of this class in your sketch's global variable section
-//			  For Example:  st::IS_Button sensor("button1", PIN_BUTTON1, 1000, LOW, true, 500);
+//			  For Example:  st::IS_Button sensor(F("button1"), PIN_BUTTON1, 1000, LOW, true, 500);
 //
 //			  st::IS_Button() constructor requires the following arguments
 //				- String &name - REQUIRED - the name of the object - should be "button1", "button2", "button3", etc...
@@ -21,6 +21,7 @@
 //    Date        Who            What
 //    ----        ---            ----
 //    2017-03-25  Dan            Original Creation
+//    2019-09-7   Dan Ogorchock  Send Button 'init' messages for automatic setting of numberOfButtons attribute
 //
 //
 //******************************************************************************************
@@ -52,12 +53,14 @@ namespace st
 		//get current status of motion sensor by calling parent class's init() routine - no need to duplicate it here!
 		InterruptSensor::init();
 		//m_lTimeBtnPressed = 0;
+		refresh();
 	}
 
 	//called periodically by Everything class to ensure ST Cloud is kept up yo date. HOWEVER, not useful for the IS_Button.
 	void IS_Button::refresh()
 	{
-		//Do Nothing since sending extraneous button presses would cause bad behavior in ST.
+		//Send 'init' message to allow Parent Driver to set numberOfButtons attribute automatically
+		Everything::sendSmartString(getName() + F(" init"));
 	}
 
 	void IS_Button::runInterrupt()

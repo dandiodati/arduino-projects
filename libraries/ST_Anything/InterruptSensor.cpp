@@ -12,6 +12,7 @@
 //    ----        ---            ----
 //    2015-01-03  Dan & Daniel   Original Creation
 //	  2015-03-17  Dan			 Added optional "numReqCounts" constructor argument/capability
+//    2019-09-22  Dan Ogorchock  ESP8266 support for using A0 pin as a digital input
 //
 //
 //******************************************************************************************
@@ -28,7 +29,26 @@ namespace st
 	//Checks to see if the pin has changed state.  If so calls appropriate function.
 	void InterruptSensor::checkIfTriggered()
 	{
-			if (digitalRead(m_nInterruptPin) == m_bInterruptState && !m_bStatus) //new interrupt
+            bool inputState;
+#if defined(ARDUINO_ARCH_ESP8266)
+            if (m_nInterruptPin == A0) 
+			{
+				if (m_nLoopCounter == 1000) {				//reading an analog input every pass through loop() is too slow
+					inputState = analogRead(A0) > 512 ? HIGH : LOW;
+					m_nLoopCounter = 0;
+				}
+				else {
+					m_nLoopCounter++;
+					return;
+				}
+			}
+			else {
+				inputState = digitalRead(m_nInterruptPin);
+			}
+#else
+            inputState = digitalRead(m_nInterruptPin);
+#endif
+			if (inputState == m_bInterruptState && !m_bStatus) //new interrupt
 			{
 				m_nCurrentDownCount = m_nRequiredCounts;
 				m_nCurrentUpCount++;
@@ -39,7 +59,7 @@ namespace st
 					runInterrupt();
 				}
 			}
-			else if ((digitalRead(m_nInterruptPin) != m_bInterruptState && m_bStatus) || m_bInitRequired) //interrupt has ended OR Init called us
+			else if ((inputState != m_bInterruptState && m_bStatus) || m_bInitRequired) //interrupt has ended OR Init called us
 			{
 				m_nCurrentUpCount = 0;
 				m_nCurrentDownCount--;
@@ -62,7 +82,8 @@ namespace st
 		m_bInitRequired(true),
 		m_nRequiredCounts(numReqCounts),
 		m_nCurrentUpCount(0),
-		m_nCurrentDownCount(numReqCounts)
+		m_nCurrentDownCount(numReqCounts),
+		m_nLoopCounter(0)
 		{
 			setInterruptPin(pin);
 		}
@@ -107,6 +128,14 @@ namespace st
 	void InterruptSensor::setInterruptPin(byte pin)
 	{
 		m_nInterruptPin=pin;
+
+#if defined(ARDUINO_ARCH_ESP8266)
+        if (pin == A0)
+        {
+            pinMode(m_nInterruptPin, INPUT);
+            return;
+        }
+#endif
 		if(!m_bPullup)
 		{
 			pinMode(m_nInterruptPin, INPUT);

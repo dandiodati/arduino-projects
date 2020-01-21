@@ -10,6 +10,7 @@
 //                             doesn't do this automatically currently
 //  2018-01-01  Dan Ogorchock  Added WiFi.RSSI() data collection
 //  2018-01-06  Dan Ogorchock  Simplified the MAC address printout to prevent confusion
+//  2018-02-03  Dan Ogorchock  Support for Hubitat
 //*******************************************************************************
 
 #include "SmartThingsESP32WiFi.h"
@@ -277,6 +278,7 @@ namespace st
 					Serial.println(tempString);
 				}
 				//Pass the message to user's SmartThings callout function
+				tempString.replace("%20", " ");  //Clean up for Hubitat
 				_calloutFunction(tempString);
 			}
 
@@ -303,7 +305,9 @@ namespace st
 			//init();
 		}
 
-		//Make sure the client is stopped, to free up socket for new conenction
+		//WiFiClient st_client;
+
+		//Make sure the client is stopped, to free up socket for new connection
 		st_client.stop();
 
 		if (st_client.connect(st_hubIP, st_hubPort))
@@ -314,10 +318,11 @@ namespace st
 			st_client.print(F(":"));
 			st_client.println(st_hubPort);
 			st_client.println(F("CONTENT-TYPE: text"));
+            st_client.println(F("CONNECTION: CLOSE"));
 			st_client.print(F("CONTENT-LENGTH: "));
 			st_client.println(message.length());
 			st_client.println();
-			st_client.println(message);
+			st_client.print(message);
 		}
 		else
 		{
@@ -367,17 +372,34 @@ namespace st
 
 		}
 
+        // Wait for a response
+        unsigned long timeout = millis();
+        while(!st_client.available())
+        {
+            if(millis() - timeout > 1000)
+            {
+                Serial.println(F("Post request timed out\n"));
+                st_client.stop();
+                return;
+            }
+        }
+
+
 		//if (_isDebugEnabled) { Serial.println(F("WiFi.send(): Reading for reply data "));}
 		// read any data returned from the POST
-		while (st_client.connected()) {
-			//while (st_client.available()) {
+        //while (st_client.connected()) {
+        while (st_client.available() && st_client.connected()) {
 			char c = st_client.read(); //gets byte from ethernet buffer
-									   //if (_isDebugEnabled) { Serial.print(c); } //prints byte to serial monitor
-									   //}
+            /*if((int) c == 255)
+            {
+                if(_isDebugEnabled)
+                    Serial.println(F("Breaking due to invalid value"));
+                break;
+            }*/
+            if (_isDebugEnabled) { Serial.print(c); } //prints byte to serial monitor
 		}
 
 		delay(1);
 		st_client.stop();
 	}
-
 }

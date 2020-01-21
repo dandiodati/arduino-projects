@@ -23,6 +23,8 @@
 //    2017-02-07  Dan Ogorchock  Added support for new SmartThings v2.0 library (ThingShield, W5100, ESP8266)
 //    2017-02-19  Dan Ogorchock  Fixed bug in throttling capability
 //    2017-04-26  Dan Ogorchock  Allow each communication method to specify unique ST transmission throttling delay
+//    2019-02-09  Dan Ogorchock  Add update() call to Executors in support of devices like EX_Servo that need a non-blocking mechanism
+//    2019-02-24  Dan Ogorchock  Added new special callOnMsgRcvd2 callback capability. Allows recvd string to be manipulated in the sketch before being processed by Everything.
 //
 //******************************************************************************************
 
@@ -38,11 +40,17 @@ namespace st
 {
 	
 //private
-	void Everything::updateSensors()
+	void Everything::updateDevices()
 	{
 		for(unsigned int index=0; index<m_nSensorCount; ++index)
 		{
 			m_Sensors[index]->update();
+			sendStrings();
+		}
+
+		for (unsigned int i = 0; i<m_nExecutorCount; ++i)
+		{
+			m_Executors[i]->update();
 			sendStrings();
 		}
 	}
@@ -176,7 +184,7 @@ namespace st
 	
 	void Everything::run()
 	{
-		updateSensors();			//call each st::Sensor object to refresh data
+		updateDevices();			//call each st::Sensor object to refresh data
 
 		#ifndef DISABLE_SMARTTHINGS
 			SmartThing->run();		//call the ST Shield Library to receive any data from the ST Hub
@@ -319,7 +327,12 @@ namespace st
 			Serial.print(F("Everything: Received: "));
 			Serial.println(message);
 		}
-		
+
+		if (Everything::callOnMsgRcvd2 != 0)
+		{
+			Everything::callOnMsgRcvd2(message);
+		}
+
 		if (message == "refresh")
 		{
 			Everything::refreshDevices();
@@ -354,7 +367,8 @@ namespace st
 	byte Everything::bTimersPending=0;	//initialize variable
 	void (*Everything::callOnMsgSend)(const String &msg)=0; //initialize this callback function to null
 	void (*Everything::callOnMsgRcvd)(const String &msg)=0; //initialize this callback function to null
-	
+	void(*Everything::callOnMsgRcvd2)(String &msg) = 0; //initialize this callback function to null
+
 	//SmartThings static members
 	//#ifndef DISABLE_SMARTTHINGS
 	//	// Please refer to Constants.h for settings that affect whether a board uses SoftwareSerial or Hardware Serial calls
@@ -375,7 +389,7 @@ long freeRam()
 	extern int __heap_start, *__brkval;
 	int v;
 	return (int)&v - (__brkval == 0 ? (int)&__heap_start : (int)__brkval);
-#elif defined(ARDUINO_ARCH_ESP8266)
+#elif defined(ARDUINO_ARCH_ESP8266) || defined(ARDUINO_ARCH_ESP32)
 	return ESP.getFreeHeap();
 #elif defined(ARDUINO_ARCH_SAMD)
 	char top;
