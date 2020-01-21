@@ -7,3 +7,6 @@
 [submodule "libraries/aREST"]
 	path = libraries/aREST
 	url = https://github.com/marcoschwartz/aREST.git
+[submodule "libraries/Syslog"]
+	path = libraries/Syslog
+	url = https://github.com/arcao/Syslog.git
